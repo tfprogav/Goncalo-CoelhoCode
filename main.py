@@ -55,42 +55,54 @@ def show_gestao_pagamentos():
         curso_id = get_curso_id()  # Obtém o id do curso selecionado
         query = f"SELECT q_utilizadores.utilizador_nome FROM q_utilizadores INNER JOIN q_alunos_cursos ON q_utilizadores.utilizador_id = q_alunos_cursos.aluno_id INNER JOIN q_cursos ON q_alunos_cursos.curso_id = q_cursos.curso_id WHERE q_cursos.curso_id = '{curso_id}'"
         resultados = executar_query(query)
-        alunos = [resultado[0] for resultado in resultados]
-        select_aluno['values'] = alunos
-        alunos_selecionados.clear()  # Limpa a lista de alunos selecionados
+        alunos = [resultado[0] for resultado in resultados] #coloca os nomes numa lista
+        select_aluno['values'] = alunos #atribui os valores da lista ao select_aluno
+        select_aluno.set('') # Limpa o conteúdo do select_aluno quando atualiza o curso
 
     def get_alunos():
         return alunos_selecionados
 
-    def get_faturas_aluno(aluno):
-        query = f"SELECT fatura, valor, status FROM faturas WHERE aluno = '{aluno}'"
+    def get_aluno_id():
+        aluno_nome = select_aluno.get()
+        query = f"SELECT utilizador_id FROM q_utilizadores WHERE utilizador_nome = '{aluno_nome}'"
+        resultados = executar_query(query)
+        if resultados:  # Verifica se há resultados antes de acessar o índice
+            return resultados[0][0]
+        return None
+
+    def get_faturas_aluno(aluno_id):
+        aluno_id = get_aluno_id()
+        query = f"SELECT pagamento_data, pagamento_curso_id, pagamento_valor FROM q_pagamentos WHERE pagamento_aluno_id = '{aluno_id}'"
         resultados = executar_query(query)
         return resultados
 
     def on_procurar_click():
-        aluno_selecionado = select_aluno.get()
-        faturas = get_faturas_aluno(aluno_selecionado)
+        aluno_id = get_aluno_id()
+        faturas = get_faturas_aluno(aluno_id)
 
         table.delete(*table.get_children())
 
         for fatura in faturas:
             table.insert('', 'end', values=fatura)
 
+    #titulo da pagina
     label = Label(content_frame, text='Gestão de Pagamentos', font=('Arial', 24, 'bold'))
-    label.place(x=340, y=1)
+    label.place(x=340, y=0)
 
+    # frame da esquerda
     select_frame = Frame(content_frame)
-    select_frame.place(x=50, y=50)
+    select_frame.place(x=50, y=70)
 
     label_curso = Label(select_frame, text='Selecionar curso:', font=('Arial', 14))
     label_curso.grid(row=0, column=0, sticky='w', pady=10)
 
+    #atribui os cursos a uma variavel para ser mostrado como valores no select_curso
     cursos = get_cursos()
     select_curso = ttk.Combobox(select_frame, values=cursos, font=('Arial', 12))
     select_curso.grid(row=0, column=1, padx=5, pady=5)
 
-    button_atualizar_turma = ttk.Button(select_frame, text='Atualizar', style='RoundedButton.TButton', command=atualizar_aluno)
-    button_atualizar_turma.grid(row=1, column=1, pady=10)
+    button_atualizar_aluno = ttk.Button(select_frame, text='Atualizar alunos', style='RoundedButton.TButton', command=atualizar_aluno)
+    button_atualizar_aluno.grid(row=1, column=1, pady=10)
 
     label_aluno = Label(select_frame, text='Selecionar aluno:', font=('Arial', 14))
     label_aluno.grid(row=2, column=0, sticky='w', pady=10)
@@ -99,11 +111,29 @@ def show_gestao_pagamentos():
     select_aluno = ttk.Combobox(select_frame, values=aluno, font=('Arial', 12))
     select_aluno.grid(row=2, column=1, padx=5, pady=5)
 
-    button_procurar = ttk.Button(select_frame, text='Procurar', style='RoundedButton.TButton', command=on_procurar_click)
-    button_procurar.grid(row=3, columnspan=2, pady=10)
+    button_procurar_faturas = ttk.Button(select_frame, text='Procurar faturas', style='RoundedButton.TButton', command=on_procurar_click)
+    button_procurar_faturas.grid(row=3, column=1, pady=10)
 
+    label_contexto = Label(content_frame, text='Tabela Faturas', font=('Arial', 16, 'bold'))
+    label_contexto.place(x=50, y=270)
+
+    #conteudo da tabela
+    table_frame = Frame(content_frame)
+    table_frame.place(x=50, y=300)
+
+    table = ttk.Treeview(table_frame, columns=('Data', 'Curso', 'Valor'), show='headings')
+    table.column('Data', width=150)
+    table.column('Curso', width=100)
+    table.column('Valor', width=100)
+    table.heading('Data', text='Data')
+    table.heading('Curso', text='Curso')
+    table.heading('Valor', text='Valor')
+
+    table.pack()
+
+    #frame da direita
     pagar_frame = Frame(content_frame)
-    pagar_frame.place(x=500, y=50)
+    pagar_frame.place(x=500, y=70)
 
     label_info_aluno = Label(pagar_frame, text='Informações do Aluno:', font=('Arial', 16, 'bold'))
     label_info_aluno.grid(row=0, column=0, columnspan=2, pady=20)
@@ -127,20 +157,6 @@ def show_gestao_pagamentos():
     style.configure('RoundedButton.TButton', borderwidth=0, relief='flat', background='#383838', foreground='white',
                     font=('Arial', 12))
     style.map('RoundedButton.TButton', background=[('active', '#4C4C4C')], foreground=[('active', 'white')])
-
-    table_frame = Frame(content_frame)
-    table_frame.place(x=50, y=270)
-
-    table = ttk.Treeview(table_frame, columns=('Fatura', 'Valor', 'Status'), show='headings')
-    table.column('Fatura', width=150)
-    table.column('Valor', width=100)
-    table.column('Status', width=100)
-    table.heading('Fatura', text='Fatura')
-    table.heading('Valor', text='Valor')
-    table.heading('Status', text='Status')
-
-    button_atualizar_turma.invoke()
-    table.pack()
 
 
 def show_performance_alunos():
