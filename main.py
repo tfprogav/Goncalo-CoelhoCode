@@ -2,7 +2,10 @@ from tkinter import *
 from tkinter import ttk
 import mysql.connector
 from tkcalendar import DateEntry
-from tkcalendar import DateEntry
+from tkinter import messagebox
+from PIL import Image
+from fpdf import FPDF
+
 
 def executar_query(query):
     mydb = mysql.connector.connect(
@@ -76,7 +79,7 @@ def show_gestao_pagamentos():
             return resultados[0][0]
         return None
 
-    def row_pagamento_id():
+    def row_pagamento_id(): #funçao para ir buscar o id como numero inteiro sem o I incial
         aluno_id = get_aluno_id()
         # mostra apenas as faturas que ainda nao foram pagas
         query = f"SELECT pagamento_id FROM q_pagamentos WHERE pagamento_aluno_id = '{aluno_id}' AND pagamento_pagou = '0'"
@@ -89,33 +92,79 @@ def show_gestao_pagamentos():
 
     def on_procurar_click():
         aluno_id = get_aluno_id()
-        # mostra apenas as faturas que ainda nao foram pagas
+        # Mostra apenas as faturas que ainda não foram pagas
         query = f"SELECT pagamento_id, pagamento_data, pagamento_curso_id, pagamento_valor FROM q_pagamentos WHERE pagamento_aluno_id = '{aluno_id}' AND pagamento_pagou = '0'"
         resultados = executar_query(query)
-        pagamento_id = row_pagamento_id()
-        data = resultados[0][1]
-        curso_id = resultados[0][2]
-        valor = resultados[0][3]
 
-        print(pagamento_id, data, curso_id, valor)
+        try: #estrutura para verificar se existem resultados a ser mostrados
+            pagamento_id = row_pagamento_id()
+            data = resultados[0][1]
+            curso_id = resultados[0][2]
+            valor = resultados[0][3]
 
-        table.delete(*table.get_children())
+            print(pagamento_id, data, curso_id, valor)
 
-        table.insert('', 'end', values=(pagamento_id, data, curso_id, valor))
+            table.delete(*table.get_children())
+            table.insert('', 'end', values=(pagamento_id, data, curso_id, valor))
+
+        except IndexError: #caso nao haja resultados mostra o erro
+            messagebox.showinfo("Aviso", "Não há faturas por pagar para o aluno selecionado.")
 
     def on_pagar_fatura_click():
         # Recebe o valor do date picker
         data = select_data.get_date()
+
         # Muda esse valor para o formato de data que está na base de dados
         data_formato = data.strftime("%Y-%m-%d")
 
         row_id = row_pagamento_id()
         metodo_pagamento = select_pagamento.get()
 
-        query_update = f"UPDATE q_pagamentos SET pagamento_data = '{data_formato}', pagamento_metodo = '{metodo_pagamento}', pagamento_pagou = 1 WHERE pagamento_id = {row_id}"
-        print(query_update)
-        executar_query(query_update)
+        try:
+            query_update = f"UPDATE q_pagamentos SET pagamento_data = '{data_formato}', pagamento_metodo = '{metodo_pagamento}', pagamento_pagou = 1 WHERE pagamento_id = {row_id}"
+            executar_query(query_update)
 
+        except IndexError: #caso a query nao seja executada com sucesso
+            messagebox.showinfo("Aviso", "A fatura nao foi paga, verifique se selecionou corretamente todos os campos")
+
+    def gerar_pdf():
+        pagamento_id = row_pagamento_id()
+
+        # junçao das tabelas q_pagamentos e q_utilizadores para ir buscar o valor e o nome do aluno a que se esta a pagar a fatura
+        query = f"SELECT q_pagamentos.pagamento_valor, q_utilizadores.utilizador_nome " \
+                f"FROM q_pagamentos " \
+                f"JOIN q_utilizadores ON q_pagamentos.pagamento_aluno_id = q_utilizadores.utilizador_id " \
+                f"WHERE q_pagamentos.pagamento_id = '{pagamento_id}' AND q_pagamentos.pagamento_pagou = '0'"
+
+        resultados = executar_query(query)
+
+        data = select_data.get_date()
+        data_formato = data.strftime("%Y-%m-%d")
+
+        curso_id = get_curso_id()
+
+        valor = resultados[0][0]
+        nome_aluno = resultados[0][1]
+
+        metodo_pagamento = select_pagamento.get()
+
+        pdf = FPDF() # Cria um novo objeto PDF
+
+        pdf.add_page() # Adiciona uma página ao PDF
+
+        pdf.image("imagens/template_ipt.png", w= 200, h= 30 ) # Adicionar a imagem do cabeçalho
+
+        pdf.set_font("Arial", size=12) # Define a fonte e o tamanho do texto
+
+        # Adiciona os detalhes do pagamento ao PDF
+        pdf.cell(0, 10, f"Nome do aluno: {nome_aluno}", ln=1)
+        pdf.cell(0, 10, f"Data: {data_formato}", ln=1)
+        pdf.cell(0, 10, f"Curso ID: {curso_id}", ln=1)
+        pdf.cell(0, 10, f"Valor: {valor}", ln=1)
+        pdf.cell(0, 10, f"Método de Pagamento: {metodo_pagamento}", ln=1)
+
+        # Salva o PDF em um arquivo
+        pdf.output("detalhes_pagamento.pdf")
 
 
     def pagina_criar_faturas():
@@ -268,6 +317,9 @@ def show_gestao_pagamentos():
 
     button_pagar = ttk.Button(pagar_frame, text='Pagar Fatura', style='RoundedButton.TButton', command=on_pagar_fatura_click)
     button_pagar.grid(row=4, column=0, columnspan=2, pady=10)
+
+    btn_gerar_pdf = ttk.Button(pagar_frame, text="Gerar PDF", command=gerar_pdf)
+    btn_gerar_pdf.grid(row=5, column=0, columnspan=2, pady=15)
 
     # Estilo dos botões
     style = ttk.Style()
