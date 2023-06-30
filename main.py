@@ -144,7 +144,7 @@ def show_gestao_pagamentos():
         curso_id = get_curso_id()
 
         valor = resultados[0][0]
-        nome_aluno = resultados[0][1]
+        nome_aluno = resultados[0][1] #nome
 
         metodo_pagamento = select_pagamento.get()
 
