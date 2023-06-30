@@ -1,6 +1,8 @@
 from tkinter import *
 from tkinter import ttk
 import mysql.connector
+from tkcalendar import DateEntry
+from tkcalendar import DateEntry
 
 def executar_query(query):
     mydb = mysql.connector.connect(
@@ -13,8 +15,10 @@ def executar_query(query):
     cursor.execute(query)
     resultados = cursor.fetchall()
     cursor.close()
+    mydb.commit()
     mydb.close()
     return resultados
+
 
 def show_gestao_utilizadores():
     clear_content_frame()
@@ -32,10 +36,12 @@ def show_gestao_aulas_horarios():
     label.pack(pady=20)
 
 def show_gestao_pagamentos():
+    # limpa a frama para aparecer a nova pagina
     clear_content_frame()
-
+    # variavel global
     alunos_selecionados = []
 
+    ##------- FUNÇOES ASSOCIADAS AS QUERIES SQL -------##
     def get_cursos():
         query = "SELECT curso_id, curso_desc, CONCAT(curso_id, ' - ', curso_desc) AS courses FROM q_cursos"
         resultados = executar_query(query)
@@ -55,9 +61,9 @@ def show_gestao_pagamentos():
         curso_id = get_curso_id()  # Obtém o id do curso selecionado
         query = f"SELECT q_utilizadores.utilizador_nome FROM q_utilizadores INNER JOIN q_alunos_cursos ON q_utilizadores.utilizador_id = q_alunos_cursos.aluno_id INNER JOIN q_cursos ON q_alunos_cursos.curso_id = q_cursos.curso_id WHERE q_cursos.curso_id = '{curso_id}'"
         resultados = executar_query(query)
-        alunos = [resultado[0] for resultado in resultados] #coloca os nomes numa lista
-        select_aluno['values'] = alunos #atribui os valores da lista ao select_aluno
-        select_aluno.set('') # Limpa o conteúdo do select_aluno quando atualiza o curso
+        alunos = [resultado[0] for resultado in resultados]  # coloca os nomes numa lista
+        select_aluno['values'] = alunos  # atribui os valores da lista ao select_aluno
+        select_aluno.set('')  # Limpa o conteúdo do select_aluno quando atualiza o curso
 
     def get_alunos():
         return alunos_selecionados
@@ -70,40 +76,139 @@ def show_gestao_pagamentos():
             return resultados[0][0]
         return None
 
-    def get_faturas_aluno(aluno_id):
+    def row_pagamento_id():
         aluno_id = get_aluno_id()
-        query = f"SELECT pagamento_data, pagamento_curso_id, pagamento_valor FROM q_pagamentos WHERE pagamento_aluno_id = '{aluno_id}'"
+        # mostra apenas as faturas que ainda nao foram pagas
+        query = f"SELECT pagamento_id FROM q_pagamentos WHERE pagamento_aluno_id = '{aluno_id}' AND pagamento_pagou = '0'"
         resultados = executar_query(query)
-        return resultados
+        pagamento_id = resultados[0][0]
+        if isinstance(pagamento_id, int):
+            return pagamento_id
+        else:
+            return int(pagamento_id[1:])
 
     def on_procurar_click():
         aluno_id = get_aluno_id()
-        faturas = get_faturas_aluno(aluno_id)
+        # mostra apenas as faturas que ainda nao foram pagas
+        query = f"SELECT pagamento_id, pagamento_data, pagamento_curso_id, pagamento_valor FROM q_pagamentos WHERE pagamento_aluno_id = '{aluno_id}' AND pagamento_pagou = '0'"
+        resultados = executar_query(query)
+        pagamento_id = row_pagamento_id()
+        data = resultados[0][1]
+        curso_id = resultados[0][2]
+        valor = resultados[0][3]
+
+        print(pagamento_id, data, curso_id, valor)
 
         table.delete(*table.get_children())
 
-        for fatura in faturas:
-            table.insert('', 'end', values=fatura)
+        table.insert('', 'end', values=(pagamento_id, data, curso_id, valor))
 
-    #titulo da pagina
+    def on_pagar_fatura_click():
+        # Recebe o valor do date picker
+        data = select_data.get_date()
+        # Muda esse valor para o formato de data que está na base de dados
+        data_formato = data.strftime("%Y-%m-%d")
+
+        row_id = row_pagamento_id()
+        metodo_pagamento = select_pagamento.get()
+
+        query_update = f"UPDATE q_pagamentos SET pagamento_data = '{data_formato}', pagamento_metodo = '{metodo_pagamento}', pagamento_pagou = 1 WHERE pagamento_id = {row_id}"
+        print(query_update)
+        executar_query(query_update)
+
+
+
+    def pagina_criar_faturas():
+        clear_content_frame()
+
+        #titulo da pagina
+        label = Label(content_frame, text='Criar faturas', font=('Arial', 24, 'bold'))
+        label.place(x=340, y=0)
+
+        #####################################
+        ##-------- MENU SECUNDARIO --------##
+        #####################################
+
+        menu_opcoes = Frame(content_frame, bg='#b3b5b4', width=150, height=50)
+        menu_opcoes.pack(anchor='ne', expand=True)
+
+        # Estilo dos botões do menu secundário
+        button_styles_mini_menu = {
+            'bg': '#008080',
+            'fg': 'white',
+            'activebackground': '#383838',
+            'activeforeground': 'white',
+            'font': FONT,
+            'borderwidth': 0,
+            'highlightthickness': 0,
+            'relief': 'flat',
+            'cursor': 'hand2',
+        }
+        # Botões do menu secundario
+        button1 = Button(menu_opcoes, text='Criar faturas', **button_styles_mini_menu, command=pagina_criar_faturas)
+        button1.pack(pady=10, padx=10, fill='x')
+
+        button2 = Button(menu_opcoes, text='Gestão de pagamentos', **button_styles_mini_menu,
+                         command=abrir_gestao_pagamentos)
+        button2.pack(pady=10, padx=10, fill='x')
+
+
+    def abrir_gestao_pagamentos():
+        clear_content_frame()
+        show_gestao_pagamentos()
+
+
+
+    #####################################
+    ##-------- MENU SECUNDARIO --------##
+    #####################################
+
+    menu_opcoes = Frame(content_frame, bg='#b3b5b4', width=150, height=50)
+    menu_opcoes.pack(anchor='ne', expand=True)
+
+    # Estilo dos botões do menu secundário
+    button_styles_mini_menu = {
+        'bg': '#008080',
+        'fg': 'white',
+        'activebackground': '#383838',
+        'activeforeground': 'white',
+        'font': FONT,
+        'borderwidth': 0,
+        'highlightthickness': 0,
+        'relief': 'flat',
+        'cursor': 'hand2',
+    }
+    #Botões do menu secundario
+    button1 = Button(menu_opcoes, text='Criar faturas', **button_styles_mini_menu, command=pagina_criar_faturas)
+    button1.pack(pady=10, padx=10, fill='x')
+
+    button2 = Button(menu_opcoes, text='Gestão de pagamentos', **button_styles_mini_menu, command=abrir_gestao_pagamentos)
+    button2.pack(pady=10, padx=10, fill='x')
+
+    # titulo da página
     label = Label(content_frame, text='Gestão de Pagamentos', font=('Arial', 24, 'bold'))
     label.place(x=340, y=0)
 
-    # frame da esquerda
-    select_frame = Frame(content_frame)
-    select_frame.place(x=50, y=70)
+    #####################################
+    ##------- FRAME DA ESQUERDA -------##
+    #####################################
 
+    select_frame = Frame(content_frame)
+    select_frame.place(x=50, y=100)
+
+    # Label e combobox para selecionar o curso
     label_curso = Label(select_frame, text='Selecionar curso:', font=('Arial', 14))
     label_curso.grid(row=0, column=0, sticky='w', pady=10)
 
-    #atribui os cursos a uma variavel para ser mostrado como valores no select_curso
+    # Atribui os cursos a uma variável para ser mostrado como valores no select_curso
     cursos = get_cursos()
     select_curso = ttk.Combobox(select_frame, values=cursos, font=('Arial', 12))
     select_curso.grid(row=0, column=1, padx=5, pady=5)
 
-    button_atualizar_aluno = ttk.Button(select_frame, text='Atualizar alunos', style='RoundedButton.TButton', command=atualizar_aluno)
+    button_atualizar_aluno = ttk.Button(select_frame, text='Atualizar alunos', style='RoundedButton.TButton',command=atualizar_aluno)
     button_atualizar_aluno.grid(row=1, column=1, pady=10)
 
+    # Label e combobox para selecionar o aluno
     label_aluno = Label(select_frame, text='Selecionar aluno:', font=('Arial', 14))
     label_aluno.grid(row=2, column=0, sticky='w', pady=10)
 
@@ -111,53 +216,64 @@ def show_gestao_pagamentos():
     select_aluno = ttk.Combobox(select_frame, values=aluno, font=('Arial', 12))
     select_aluno.grid(row=2, column=1, padx=5, pady=5)
 
-    button_procurar_faturas = ttk.Button(select_frame, text='Procurar faturas', style='RoundedButton.TButton', command=on_procurar_click)
+    button_procurar_faturas = ttk.Button(select_frame, text='Procurar faturas', style='RoundedButton.TButton',
+                                         command=on_procurar_click)
     button_procurar_faturas.grid(row=3, column=1, pady=10)
 
+    #####################################
+    ##------- TABELA FATURAS -------##
+    #####################################
+
     label_contexto = Label(content_frame, text='Tabela Faturas', font=('Arial', 16, 'bold'))
-    label_contexto.place(x=50, y=270)
+    label_contexto.place(x=50, y=300)
 
-    #conteudo da tabela
+    # Conteúdo da tabela
     table_frame = Frame(content_frame)
-    table_frame.place(x=50, y=300)
+    table_frame.place(x=50, y=340)
 
-    table = ttk.Treeview(table_frame, columns=('Data', 'Curso', 'Valor'), show='headings')
-    table.column('Data', width=150)
+    table = ttk.Treeview(table_frame, columns=('ID', 'Data', 'Curso', 'Valor'), show='headings')
+    table.column('ID', width=100)
+    table.column('Data', width=100)
     table.column('Curso', width=100)
     table.column('Valor', width=100)
+    table.heading('ID', text='ID')
     table.heading('Data', text='Data')
     table.heading('Curso', text='Curso')
     table.heading('Valor', text='Valor')
 
     table.pack()
 
-    #frame da direita
-    pagar_frame = Frame(content_frame)
-    pagar_frame.place(x=500, y=70)
+    #####################################
+    ##------- FRAME DA DIREITA -------##
+    #####################################
 
+    pagar_frame = Frame(content_frame)
+    pagar_frame.place(x=500, y=100)
+
+    # Label, comboboxes e botão para realizar o pagamento
     label_info_aluno = Label(pagar_frame, text='Informações do Aluno:', font=('Arial', 16, 'bold'))
     label_info_aluno.grid(row=0, column=0, columnspan=2, pady=20)
 
     label_mes = Label(pagar_frame, text='Selecionar mês:', font=('Arial', 14))
     label_mes.grid(row=1, column=0, sticky='w', pady=(0, 10))
 
-    select_mes = ttk.Combobox(pagar_frame, values=['Janeiro', 'Fevereiro', 'Março'], font=('Arial', 12))
-    select_mes.grid(row=1, column=1, pady=(0, 10))
+    select_data = DateEntry( pagar_frame, select_mode='day', font=('Arial', 12))
+    select_data.grid(row=1, column=1, pady=(0, 10))
 
     label_pagamento = Label(pagar_frame, text='Selecionar método de pagamento:', font=('Arial', 14))
     label_pagamento.grid(row=2, column=0, sticky='w', pady=(0, 10))
 
-    select_pagamento = ttk.Combobox(pagar_frame, values=['Cartão de crédito', 'Transferência bancária'], font=('Arial', 12))
+    select_pagamento = ttk.Combobox(pagar_frame, values=['Credit Card', 'Bank Transfer', 'PayPal', 'Cash'], font=('Arial', 12))
     select_pagamento.grid(row=2, column=1, pady=(0, 10))
 
-    button_pagar = ttk.Button(pagar_frame, text='Pagar Fatura', style='RoundedButton.TButton')
+    button_pagar = ttk.Button(pagar_frame, text='Pagar Fatura', style='RoundedButton.TButton', command=on_pagar_fatura_click)
     button_pagar.grid(row=4, column=0, columnspan=2, pady=10)
 
+    # Estilo dos botões
     style = ttk.Style()
     style.configure('RoundedButton.TButton', borderwidth=0, relief='flat', background='#383838', foreground='white',
                     font=('Arial', 12))
     style.map('RoundedButton.TButton', background=[('active', '#4C4C4C')], foreground=[('active', 'white')])
-
 
 def show_performance_alunos():
     clear_content_frame()
@@ -167,6 +283,7 @@ def show_performance_alunos():
 def clear_content_frame():
     for widget in content_frame.winfo_children():
         widget.destroy()
+
 
 root = Tk()
 root.title('Centro de formação')
