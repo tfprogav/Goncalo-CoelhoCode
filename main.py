@@ -1,11 +1,9 @@
 from tkinter import *
-from tkinter import ttk
+from tkinter import ttk, messagebox
 import mysql.connector
 from tkcalendar import DateEntry
-from tkinter import messagebox
-from PIL import Image
+from PIL import Image, ImageTk
 from fpdf import FPDF
-
 
 def executar_query(query):
     mydb = mysql.connector.connect(
@@ -51,6 +49,220 @@ def show_gestao_pagamentos():
     def abrir_gestao_pagamentos():
         clear_content_frame()
         show_gestao_pagamentos()
+
+    def abrir_editar_faturas():
+        clear_content_frame()
+
+        def login():
+            email = entry_email.get()
+            password= entry_password.get()
+
+            #verifica se é utilizador com cargo de administrador
+            query = f"SELECT utilizador_nome FROM q_utilizadores " \
+                    f"WHERE utilizador_email = '{email}' AND utilizador_senha = '{password}' AND utilizador_perfil = 3"
+
+            executar_query(query)
+
+            #caso seja administrador
+            if executar_query(query):
+                clear_content_frame()
+
+                #vai buscar os dados das faturas que ainda nao foram pagas
+                query_tabela = f"SELECT pagamento_id, pagamento_data, pagamento_aluno_id, pagamento_curso_id, pagamento_valor FROM q_pagamentos " \
+                               f"WHERE pagamento_pagou = 0"
+                resultados = executar_query(query_tabela)
+
+
+                ############################################
+                ##------- TABELA FATURAS POR PAGAR -------##
+                ############################################
+
+                label_contexto = Label(content_frame, text='Ediçao da Tabela Faturas', font=('Arial', 16, 'bold'))
+                label_contexto.place(relx=0.5, rely=0, anchor='n')
+
+                # Conteúdo da tabela
+                table_frame2 = Frame(content_frame)
+                table_frame2.place(x=10, y=50)
+
+                table_fatura = ttk.Treeview(table_frame2, columns=('ID', 'Data', 'Aluno ID', 'Curso', 'Valor'), show='headings')
+                table_fatura.column('ID', width=100)
+                table_fatura.column('Data', width=100)
+                table_fatura.column('Aluno ID', width=100)
+                table_fatura.column('Curso', width=100)
+                table_fatura.column('Valor', width=100)
+                table_fatura.heading('ID', text='ID')
+                table_fatura.heading('Data', text='Data')
+                table_fatura.heading('Aluno ID', text='Aluno ID')
+                table_fatura.heading('Curso', text='Curso')
+                table_fatura.heading('Valor', text='Valor')
+
+                table_fatura.pack()
+
+                #mostra os resultados da query na tabela
+                for resultado in resultados:
+                    table_fatura.insert('', 'end', values=(resultado))
+
+                def apagar_linha():
+                    item_selecionado = table_fatura.selection()  # Obter item selecionado
+                    if item_selecionado:
+                        linha_selecionada = table_fatura.item(item_selecionado)['values']  # Obter valores da linha selecionada
+                        pagamento_id = linha_selecionada[0]  # Pagamento ID está na primeira coluna (índice 0)
+
+                        #apagar a linha com base na linha que foi selecionada
+                        query_apagar = f"DELETE FROM q_pagamentos WHERE pagamento_id = {pagamento_id}"
+                        executar_query(query_apagar)
+
+                        # Remover a linha selecionada da tabela
+                        table_fatura.delete(item_selecionado)
+
+                        messagebox.showinfo("Sucesso", "Fatura apagada com sucesso!")
+                    else:
+                        messagebox.showwarning("Aviso", "Nenhuma linha selecionada.")
+
+                #botao para apagar a fatura selecionada
+                button_apagar_linha = Button(content_frame, text='Apagar fatura selecionada', bg='#d43f3f', command=apagar_linha)
+                button_apagar_linha.place(x=550, y=80)
+
+                #####################################
+                ##--- FRAME PARA EDITAR FATURAS ---##
+                #####################################
+                def editar_fatura():
+                    item_selecionado = table_fatura.selection()  # Obter item selecionado
+                    if item_selecionado:
+                        linha_selecionada = table_fatura.item(item_selecionado)['values']  # Obter valores da linha selecionada
+                        pagamento_id = linha_selecionada[0]  # Pagamento ID está na primeira coluna (índice 0)
+
+                        # Obter os dados da fatura a ser editada com base no pagamento_id
+                        query_fatura = f"SELECT pagamento_data, pagamento_aluno_id, pagamento_curso_id, pagamento_valor " \
+                                       f"FROM q_pagamentos WHERE pagamento_id = {pagamento_id}"
+                        resultado = executar_query(query_fatura)
+
+
+                        if resultado:
+                            def get_curso_id3():
+                                nome_curso = select_curso3.get()
+                                query = f"SELECT curso_id FROM q_cursos WHERE curso_desc = '{nome_curso}'"
+                                resultados = executar_query(query)
+
+                                if resultados:  # Verifica se há resultados antes de acessar o índice
+                                    return resultados[0][0]
+                                return None
+
+                            def atualizar_aluno3():
+                                curso_id = get_curso_id3()  # Obtém o id do curso selecionado
+                                query = f"SELECT q_utilizadores.utilizador_nome FROM q_utilizadores INNER JOIN q_alunos_cursos ON q_utilizadores.utilizador_id = q_alunos_cursos.aluno_id INNER JOIN q_cursos ON q_alunos_cursos.curso_id = q_cursos.curso_id WHERE q_cursos.curso_id = '{curso_id}'"
+                                resultados = executar_query(query)
+                                alunos = [resultado[0] for resultado in resultados]  # coloca os nomes numa lista
+                                select_aluno3['values'] = alunos  # atribui os valores da lista ao select_aluno
+                                select_aluno3.set('')  # Limpa o conteúdo do select_aluno quando atualiza o curso
+
+                            def get_alunos3():
+                                return alunos_selecionados
+
+                            def get_aluno_id3():
+                                aluno_nome = select_aluno3.get()
+                                query = f"SELECT utilizador_id FROM q_utilizadores WHERE utilizador_nome = '{aluno_nome}'"
+                                resultados = executar_query(query)
+                                if resultados:  # Verifica se há resultados antes de acessar o índice
+                                    return resultados[0][0]
+                                return None
+
+                            def get_valor2():
+                                curso_nome = select_curso3.get()
+                                query = f"SELECT curso_preco FROM q_cursos WHERE curso_desc = '{curso_nome}'"
+                                resultados = executar_query(query)
+                                valor = resultados[0][0]  # Obtém o valor concatenado do curso
+                                return valor
+
+
+                            update_frame = Frame(content_frame) #frame update
+                            update_frame.place(x=550, y=200)
+
+                            label_curso3 = Label(update_frame, text='Selecionar curso:', font=('Arial', 14))
+                            label_curso3.grid(row=0, column=0, sticky='w', pady=10)
+
+                            # Atribui os cursos a uma variável para ser mostrado como valores no select_curso
+                            cursos2 = get_cursos()
+                            select_curso3 = ttk.Combobox(update_frame, values=cursos2, font=('Arial', 12))
+                            select_curso3.grid(row=0, column=1, padx=5, pady=5)
+
+                            button_atualizar_aluno3 = ttk.Button(update_frame, text='Atualizar alunos',
+                                                                 style='RoundedButton.TButton',
+                                                                 command=atualizar_aluno3)
+                            button_atualizar_aluno3.grid(row=1, column=1, pady=10)
+
+                            # Label e combobox para selecionar o aluno
+                            label_aluno3 = Label(update_frame, text='Selecionar aluno:', font=('Arial', 14))
+                            label_aluno3.grid(row=2, column=0, sticky='w', pady=10)
+
+                            aluno3 = get_alunos3()
+                            select_aluno3 = ttk.Combobox(update_frame, values=aluno3, font=('Arial', 12))
+                            select_aluno3.grid(row=2, column=1, padx=5, pady=5)
+
+                            label_mes3 = Label(update_frame, text='Selecionar mês:', font=('Arial', 14))
+                            label_mes3.grid(row=3, column=0, sticky='w', pady=(0, 10))
+
+                            entry_data = DateEntry(update_frame, select_mode='day', font=('Arial', 12))
+                            entry_data.grid(row=3, column=1, pady=(0, 10))
+
+                            data =resultado[0][0] #passa o valor da data para uma variavel
+
+                            entry_data.set_date(data) #passa o valor selecionado na linha para o widget da data
+
+                            def guardar_alteracoes():
+                                # Receber os novos valores que estao no widgets para posteriormente dar update
+                                nova_data = entry_data.get_date()
+                                nova_data_formato = nova_data.strftime("%Y-%m-%d")
+                                novo_aluno_id = get_aluno_id3()
+                                novo_curso_id = get_curso_id3()
+                                novo_valor = get_valor2()
+
+                                # Executar a query de atualização na tabela de faturas
+                                query_atualizar = f"UPDATE q_pagamentos SET " \
+                                                  f"pagamento_data = '{nova_data_formato}', " \
+                                                  f"pagamento_aluno_id = {novo_aluno_id}, " \
+                                                  f"pagamento_curso_id = {novo_curso_id}, " \
+                                                  f"pagamento_valor = {novo_valor} " \
+                                                  f"WHERE pagamento_id = {pagamento_id}"
+                                executar_query(query_atualizar)
+
+                                # Exibir mensagem de sucesso
+                                messagebox.showinfo("Sucesso", "Alterações salvas com sucesso!")
+
+                            # Botão para guardar as alterações
+                            button_guardar = ttk.Button(update_frame, text="Salvar Alterações", style='RoundedButton.TButton',command=guardar_alteracoes)
+                            button_guardar.grid(row=4, column=1)
+
+                        else:
+                            messagebox.showwarning("Aviso", "Fatura não encontrada.")
+                    else:
+                       messagebox.showwarning("Aviso", "Nenhuma linha selecionada.")
+
+                # botao para apagar a fatura selecionada
+                button_editar_linha = ttk.Button(content_frame, text='Editar fatura selecionada',style='RoundedButton.TButton',command=editar_fatura)
+                button_editar_linha.place(x=550, y=130)
+
+        # Título da página
+        label = Label(content_frame, text='Login Administrador', font=('Arial', 24, 'bold'))
+        label.grid(row=0, column=0, columnspan=2, pady=(0, 20))
+
+        # Labels e entradas
+        label_email = Label(content_frame, text='Email:', font=('Arial', 14))
+        label_email.grid(row=1, column=0, sticky='e', pady=10)
+
+        entry_email = Entry(content_frame)
+        entry_email.grid(row=1, column=1, pady=10)
+
+        label_password = Label(content_frame, text='Password:', font=('Arial', 14))
+        label_password.grid(row=2, column=0, sticky='e', pady=10)
+
+        entry_password = Entry(content_frame)
+        entry_password.grid(row=2, column=1, pady=10)
+
+        button_login = ttk.Button(content_frame, text='Login', style='RoundedButton.TButton', command=login)
+        button_login.grid(row=3, column=1, pady=10)
+
+
     def pagina_criar_faturas():
         clear_content_frame()
 
@@ -140,6 +352,10 @@ def show_gestao_pagamentos():
                          command=abrir_gestao_pagamentos)
         button2_2.pack(pady=10, padx=10, fill='x')
 
+        button3_3 = Button(menu_opcoes, text='Editar Faturas', **button_styles_mini_menu,
+                           command=abrir_gestao_pagamentos)
+        button3_3.pack(pady=10, padx=10, fill='x')
+
 
         ##########################################
         ##--------- FRAME CRIAR FATURAS --------##
@@ -184,7 +400,7 @@ def show_gestao_pagamentos():
         button_criar = ttk.Button(criarFatura_frame, text='Criar Fatura', style='RoundedButton.TButton', command=on_criar_fatura_click)
         button_criar.grid(row=5, column=1, columnspan=2, pady=10)
 
-
+#--------------------------------------------------------------------------------------------------------------------------------------------------#
 
     #####################################################################
     #############------ FRAME GESTÃO DE PAGAMENTOS ------################
@@ -359,7 +575,7 @@ def show_gestao_pagamentos():
     ########################################################
 
     pagar_frame = Frame(content_frame)
-    pagar_frame.place(x=500, y=100)
+    pagar_frame.place(x=500, y=150)
 
     # Label, comboboxes e botão para realizar o pagamento
     label_info_aluno = Label(pagar_frame, text='Informações do Aluno:', font=('Arial', 16, 'bold'))
@@ -440,6 +656,10 @@ def show_gestao_pagamentos():
     button2 = Button(menu_opcoes, text='Gestão de pagamentos', **button_styles_mini_menu,
                      command=abrir_gestao_pagamentos)
     button2.pack(pady=10, padx=10, fill='x')
+
+    button3 = Button(menu_opcoes, text='Editar Faturas', **button_styles_mini_menu,
+                       command=abrir_editar_faturas)
+    button3.pack(pady=10, padx=10, fill='x')
 
 
 def show_performance_alunos():
