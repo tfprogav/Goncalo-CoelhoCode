@@ -2,7 +2,6 @@ from tkinter import *
 from tkinter import ttk, messagebox
 import mysql.connector
 from tkcalendar import DateEntry
-from PIL import Image, ImageTk
 from fpdf import FPDF
 
 def executar_query(query):
@@ -49,6 +48,11 @@ def show_gestao_pagamentos():
     def abrir_gestao_pagamentos():
         clear_content_frame()
         show_gestao_pagamentos()
+
+
+    ######################################################################
+    #############------ PAGINA EDITAR FATURAS(ADMIN) ------###############
+    ######################################################################
 
     def abrir_editar_faturas():
         clear_content_frame()
@@ -262,6 +266,10 @@ def show_gestao_pagamentos():
         button_login = ttk.Button(content_frame, text='Login', style='RoundedButton.TButton', command=login)
         button_login.grid(row=3, column=1, pady=10)
 
+# --------------------------------------------------------------------------------------------------------------------------------------------------#
+    ###################################################################
+    #################------ PAGINA CRIAR FATURAS ------################
+    ###################################################################
 
     def pagina_criar_faturas():
         clear_content_frame()
@@ -402,9 +410,9 @@ def show_gestao_pagamentos():
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------#
 
-    #####################################################################
-    #############------ FRAME GESTÃO DE PAGAMENTOS ------################
-    #####################################################################
+    ######################################################################
+    #############------ PAGINA GESTÃO DE PAGAMENTOS ------################
+    ######################################################################
 
     alunos_selecionados = [] # variavel global
 
@@ -412,12 +420,6 @@ def show_gestao_pagamentos():
     #####################################################
     ##------- FUNÇOES ASSOCIADAS AS QUERIES SQL -------##
     #####################################################
-
-    def get_cursos():
-        query = "SELECT curso_id, curso_desc, CONCAT(curso_id, ' - ', curso_desc) AS courses FROM q_cursos"
-        resultados = executar_query(query)
-        cursos = [resultado[1] for resultado in resultados]  # Obtém o valor concatenado do curso
-        return cursos
 
     def get_curso_id():
         nome_curso = select_curso.get()
@@ -675,7 +677,7 @@ def clear_content_frame():
 root = Tk()
 root.title('Centro de formação')
 root.geometry('1280x640+280+150')
-root.resizable(0, 0)
+root.resizable(False, False) #janela nao pode ser redimensionada
 
 FONT = ('Arial', 12)
 
