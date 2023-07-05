@@ -313,19 +313,22 @@ def show_gestao_pagamentos():
             data = select_data2.get_date() #Recebe o valor do date picker
             data_formato = data.strftime("%Y-%m-%d") #Muda esse valor para o formato de data que está na base de dados
 
+            #recebe os valores selecionados
             aluno_id = get_aluno_id2()
             curso_id = get_curso_id2()
             valor = get_valor()
-            metodo_pagamento = select_pagamento2.get()
 
+            #tenta executar a query se conseguir mostra sucesso
             try:
-                query_update = f"INSERT INTO q_pagamentos (pagamento_data, pagamento_aluno_id, pagamento_curso_id, pagamento_valor, pagamento_metodo, pagamento_pagou) " \
-                               f"VALUES ('{data_formato}',{aluno_id},{curso_id}, {valor}, '{metodo_pagamento}', 1)"
+                query_update = f"INSERT INTO q_pagamentos (pagamento_data, pagamento_aluno_id, pagamento_curso_id, pagamento_valor, pagamento_pagou) " \
+                               f"VALUES ('{data_formato}',{aluno_id},{curso_id}, {valor}, 0)"
                 executar_query(query_update)
 
+                messagebox.showinfo("Sucesso","A fatura foi criada!")
+
+            #se nao conseguir mostra a mensagem de erro
             except IndexError:  # caso a query nao seja executada com sucesso
-                messagebox.showinfo("Aviso",
-                                    "A fatura nao foi paga, verifique se selecionou corretamente todos os campos")
+                messagebox.showinfo("Aviso","A fatura nao foi paga, verifique se selecionou corretamente todos os campos")
 
         # Título da página
         label = Label(content_frame, text='Criar faturas', font=('Arial', 24, 'bold'))
@@ -399,14 +402,8 @@ def show_gestao_pagamentos():
         select_data2 = DateEntry(criarFatura_frame, select_mode='day', font=('Arial', 12))
         select_data2.grid(row=3, column=1, pady=(0, 10))
 
-        label_pagamento2 = Label(criarFatura_frame, text='Selecionar método de pagamento:', font=('Arial', 14))
-        label_pagamento2.grid(row=4, column=0, sticky='w', pady=(0, 10))
-
-        select_pagamento2 = ttk.Combobox(criarFatura_frame, values=['Credit Card', 'Bank Transfer', 'PayPal', 'Cash'], font=('Arial', 12))
-        select_pagamento2.grid(row=4, column=1, pady=(0, 10))
-
         button_criar = ttk.Button(criarFatura_frame, text='Criar Fatura', style='RoundedButton.TButton', command=on_criar_fatura_click)
-        button_criar.grid(row=5, column=1, columnspan=2, pady=10)
+        button_criar.grid(row=4, column=1, columnspan=2, pady=10)
 
 #--------------------------------------------------------------------------------------------------------------------------------------------------#
 
@@ -449,15 +446,21 @@ def show_gestao_pagamentos():
             return resultados[0][0]
         return None
 
-    def row_pagamento_id(): #funçao para ir buscar o id como numero inteiro sem o I incial
-        aluno_id = get_aluno_id()
-        # mostra apenas as faturas que ainda nao foram pagas
+    def row_pagamento_id():
+        aluno_id = get_aluno_id() # Obtém o ID do aluno
+
+        # seleciona a linha que corresponde a fatura nao paga de um determinado aluno
         query = f"SELECT pagamento_id FROM q_pagamentos WHERE pagamento_aluno_id = '{aluno_id}' AND pagamento_pagou = '0'"
+
         resultados = executar_query(query)
-        pagamento_id = resultados[0][0]
+
+        pagamento_id = resultados[0][0] #passa o valor da linha para a variavel
+
+        # Verifica se o pagamento_id é um número inteiro porque a tabela devolvia o numero (I001) em vez de (1)
         if isinstance(pagamento_id, int):
             return pagamento_id
         else:
+            # Caso contrário, assume-se que o pagamento_id começa com um "I" seguido de um número, remove o "I" inicial e converte o restante em um número inteiro
             return int(pagamento_id[1:])
 
     def on_procurar_click():
@@ -467,25 +470,26 @@ def show_gestao_pagamentos():
         resultados = executar_query(query)
 
         try: #estrutura para verificar se existem resultados a ser mostrados
+
+            #se existir passa os valores da lista para as variaveis
             pagamento_id = row_pagamento_id()
             data = resultados[0][1]
             curso_id = resultados[0][2]
             valor = resultados[0][3]
 
-            print(pagamento_id, data, curso_id, valor)
-
-            table.delete(*table.get_children())
+            #coloca os valores na tabela
             table.insert('', 'end', values=(pagamento_id, data, curso_id, valor))
 
-        except IndexError: #caso nao haja resultados mostra o erro
+        #se não houver faturas para esse determinado aluno mostra uma mensagem de erro
+        except IndexError:
             messagebox.showinfo("Aviso", "Não há faturas por pagar para o aluno selecionado.")
 
     def on_pagar_fatura_click():
-        # Recebe o valor do date picker
-        data = select_data.get_date()
 
-        # Muda esse valor para o formato de data que está na base de dados
-        data_formato = data.strftime("%Y-%m-%d")
+        data = select_data.get_date()# Recebe o valor do date picker
+
+        data_formato = data.strftime("%Y-%m-%d") # Muda esse valor para o formato de data que está na base de dados
+
 
         row_id = row_pagamento_id()
         metodo_pagamento = select_pagamento.get()
@@ -493,6 +497,8 @@ def show_gestao_pagamentos():
         try:
             query_update = f"UPDATE q_pagamentos SET pagamento_data = '{data_formato}', pagamento_metodo = '{metodo_pagamento}', pagamento_pagou = 1 WHERE pagamento_id = {row_id}"
             executar_query(query_update)
+
+            messagebox.showinfo("Sucesso", "A fatura foi paga com sucesso!")
 
         except IndexError: #caso a query nao seja executada com sucesso
             messagebox.showinfo("Aviso", "A fatura nao foi paga, verifique se selecionou corretamente todos os campos")
@@ -529,12 +535,16 @@ def show_gestao_pagamentos():
         pdf.cell(0, 10, f"Nome do aluno: {nome_aluno}", ln=1)
         pdf.cell(0, 10, f"Nome curso: {curso_nome}", ln=1)
         pdf.cell(0, 10, f"Data: {data_formato}", ln=1)
-        pdf.cell(0, 10, f"Valor: {valor}", ln=1)
+        pdf.cell(0, 10, f"Valor: {valor}€", ln=1)
         pdf.cell(0, 10, f"Método de Pagamento: {metodo_pagamento}", ln=1)
 
         nome_arquivo = "detalhes_pagamento_" + str(pagamento_id) + ".pdf"
         caminho_arquivo = "pdfs_recibos/" + nome_arquivo  # Define o caminho completo do arquivo
-        pdf.output(caminho_arquivo)  # Salva o PDF em um arquivo
+        try:
+            pdf.output(caminho_arquivo)  # Tenta salvar o PDF em um arquivo
+            messagebox.showinfo("Sucesso", "O pdf foi criado com sucesso na pasta pdfs_recibos")
+        except IndexError:
+            messagebox.showinfo("Aviso", "O pdf tem que ser gerado antes da fatura ser paga!")
 
     # titulo da página
     label = Label(content_frame, text='Gestão de Pagamentos', font=('Arial', 24, 'bold'))
@@ -595,11 +605,12 @@ def show_gestao_pagamentos():
     select_pagamento = ttk.Combobox(pagar_frame, values=['Credit Card', 'Bank Transfer', 'PayPal', 'Cash'], font=('Arial', 12))
     select_pagamento.grid(row=2, column=1, pady=(0, 10))
 
-    button_pagar = ttk.Button(pagar_frame, text='Pagar Fatura', style='RoundedButton.TButton', command=on_pagar_fatura_click)
-    button_pagar.grid(row=4, column=0, columnspan=2, pady=10)
-
     button_gerar_pdf = ttk.Button(pagar_frame, text="Gerar PDF", style='RoundedButton.TButton', command=gerar_pdf)
-    button_gerar_pdf.grid(row=5, column=0, columnspan=2, pady=15)
+    button_gerar_pdf.grid(row=4, column=0, columnspan=2, pady=15)
+
+    button_pagar = ttk.Button(pagar_frame, text='Pagar Fatura', style='RoundedButton.TButton', command=on_pagar_fatura_click)
+    button_pagar.grid(row=5, column=0, columnspan=2, pady=10)
+
 
     # Estilo dos botões
     style = ttk.Style()
