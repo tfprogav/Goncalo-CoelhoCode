@@ -20,24 +20,10 @@ def executar_query(query):
     return resultados
 
 
-def show_gestao_utilizadores():
-    clear_content_frame()
-    label = Label(content_frame, text='Informações de Gestão de Utilizadores', font=('Arial', 14))
-    label.pack(pady=20)
+#funçao principal
+def show_gestao_pagamentos(content_frame):
 
-def show_gestao_alunos():
-    clear_content_frame()
-    label = Label(content_frame, text='Informações de Gestão de Alunos', font=('Arial', 14))
-    label.pack(pady=20)
-
-def show_gestao_aulas_horarios():
-    clear_content_frame()
-    label = Label(content_frame, text='Informações de Gestão de Aulas e Horários', font=('Arial', 14))
-    label.pack(pady=20)
-
-def show_gestao_pagamentos():
-
-    clear_content_frame() # limpa a frama para aparecer a nova pagina
+    clear_content_frame(content_frame) # limpa a frama para aparecer a nova pagina
 
     def get_cursos(): #Funçao para ir buscar o nome dos cursos que serve para ambas as paginas
         query = "SELECT curso_desc FROM q_cursos"
@@ -45,9 +31,10 @@ def show_gestao_pagamentos():
         cursos = [resultado[0] for resultado in resultados]  # Obtém o valor concatenado do curso
         return cursos
 
-    def abrir_gestao_pagamentos():
-        clear_content_frame()
-        show_gestao_pagamentos()
+    #funçao para correr no menu secundario
+    def abrir_gestao_pagamentos(content_frame):
+        clear_content_frame(content_frame)
+        show_gestao_pagamentos(content_frame)
 
 
     ######################################################################
@@ -55,7 +42,7 @@ def show_gestao_pagamentos():
     ######################################################################
 
     def abrir_editar_faturas():
-        clear_content_frame()
+        clear_content_frame(content_frame)
 
         def login():
             email = entry_email.get()
@@ -69,7 +56,7 @@ def show_gestao_pagamentos():
 
             #caso seja administrador
             if executar_query(query):
-                clear_content_frame()
+                clear_content_frame(content_frame)
 
                 #vai buscar os dados das faturas que ainda nao foram pagas
                 query_tabela = f"SELECT pagamento_id, pagamento_data, pagamento_aluno_id, pagamento_curso_id, pagamento_valor FROM q_pagamentos " \
@@ -179,6 +166,11 @@ def show_gestao_pagamentos():
                                 return valor
 
 
+                            ######################################
+                            ####--- FRAME ATUALIZAR FATURA ---####
+                            ######################################
+
+
                             update_frame = Frame(content_frame) #frame update
                             update_frame.place(x=550, y=200)
 
@@ -234,7 +226,7 @@ def show_gestao_pagamentos():
                                 messagebox.showinfo("Sucesso", "Alterações salvas com sucesso!")
 
                             # Botão para guardar as alterações
-                            button_guardar = ttk.Button(update_frame, text="Salvar Alterações", style='RoundedButton.TButton',command=guardar_alteracoes)
+                            button_guardar = ttk.Button(update_frame, text="Guardar Alterações", style='RoundedButton.TButton',command=guardar_alteracoes)
                             button_guardar.grid(row=4, column=1)
 
                         else:
@@ -272,7 +264,7 @@ def show_gestao_pagamentos():
     ###################################################################
 
     def pagina_criar_faturas():
-        clear_content_frame()
+        clear_content_frame(content_frame)
 
         def get_curso_id2():
             nome_curso = select_curso2.get()
@@ -348,7 +340,7 @@ def show_gestao_pagamentos():
             'fg': 'white',
             'activebackground': '#383838',
             'activeforeground': 'white',
-            'font': FONT,
+            'font': 'Arial 12',
             'borderwidth': 0,
             'highlightthickness': 0,
             'relief': 'flat',
@@ -360,11 +352,11 @@ def show_gestao_pagamentos():
         button1_2.pack(pady=10, padx=10, fill='x')
 
         button2_2 = Button(menu_opcoes, text='Gestão de pagamentos', **button_styles_mini_menu,
-                         command=abrir_gestao_pagamentos)
+                           command=lambda: abrir_gestao_pagamentos(content_frame))
         button2_2.pack(pady=10, padx=10, fill='x')
 
         button3_3 = Button(menu_opcoes, text='Editar Faturas', **button_styles_mini_menu,
-                           command=abrir_gestao_pagamentos)
+                           command=lambda:abrir_gestao_pagamentos(content_frame))
         button3_3.pack(pady=10, padx=10, fill='x')
 
 
@@ -535,13 +527,13 @@ def show_gestao_pagamentos():
         pdf.cell(0, 10, f"Nome do aluno: {nome_aluno}", ln=1)
         pdf.cell(0, 10, f"Nome curso: {curso_nome}", ln=1)
         pdf.cell(0, 10, f"Data: {data_formato}", ln=1)
-        pdf.cell(0, 10, f"Valor: {valor}€", ln=1)
+        pdf.cell(0, 10, f"Valor: {valor} euros", ln=1)
         pdf.cell(0, 10, f"Método de Pagamento: {metodo_pagamento}", ln=1)
 
         nome_arquivo = "detalhes_pagamento_" + str(pagamento_id) + ".pdf"
         caminho_arquivo = "pdfs_recibos/" + nome_arquivo  # Define o caminho completo do arquivo
         try:
-            pdf.output(caminho_arquivo)  # Tenta salvar o PDF em um arquivo
+            pdf.output(caminho_arquivo)  # Tenta guardar o PDF em um arquivo
             messagebox.showinfo("Sucesso", "O pdf foi criado com sucesso na pasta pdfs_recibos")
         except IndexError:
             messagebox.showinfo("Aviso", "O pdf tem que ser gerado antes da fatura ser paga!")
@@ -655,7 +647,7 @@ def show_gestao_pagamentos():
         'fg': 'white',
         'activebackground': '#383838',
         'activeforeground': 'white',
-        'font': FONT,
+        'font': 'Arial 12',
         'borderwidth': 0,
         'highlightthickness': 0,
         'relief': 'flat',
@@ -667,7 +659,7 @@ def show_gestao_pagamentos():
     button1.pack(pady=10, padx=10, fill='x')
 
     button2 = Button(menu_opcoes, text='Gestão de pagamentos', **button_styles_mini_menu,
-                     command=abrir_gestao_pagamentos)
+                     command=lambda:abrir_gestao_pagamentos(content_frame))
     button2.pack(pady=10, padx=10, fill='x')
 
     button3 = Button(menu_opcoes, text='Editar Faturas', **button_styles_mini_menu,
@@ -675,57 +667,7 @@ def show_gestao_pagamentos():
     button3.pack(pady=10, padx=10, fill='x')
 
 
-def show_performance_alunos():
-    clear_content_frame()
-    label = Label(content_frame, text='Informações de Performance de Alunos', font=('Arial', 14))
-    label.pack(pady=20)
-
-def clear_content_frame():
+def clear_content_frame(content_frame):
     for widget in content_frame.winfo_children():
         widget.destroy()
 
-
-root = Tk()
-root.title('Centro de formação')
-root.geometry('1280x640+280+150')
-root.resizable(False, False) #janela nao pode ser redimensionada
-
-FONT = ('Arial', 12)
-
-main_frame = Frame(root, width=1280, height=720, bg='#F5F5F5')
-main_frame.pack(fill='both', expand=True)
-
-menu_frame = Frame(main_frame, bg='#383838', width=200, height=720)
-menu_frame.pack(side='left', fill='y')
-
-content_frame = Frame(main_frame, bg='white', width=1080, height=720)
-content_frame.pack(side='left', fill='both', expand=True)
-
-button_styles = {
-    'bg': '#008080',
-    'fg': 'white',
-    'activebackground': '#4C4C4C',
-    'activeforeground': 'white',
-    'font': FONT,
-    'borderwidth': 0,
-    'highlightthickness': 0,
-    'relief': 'flat',
-    'cursor': 'hand2',
-}
-
-button1 = Button(menu_frame, text='Gestão de Utilizadores', **button_styles, command=show_gestao_utilizadores)
-button1.pack(pady=10, padx=20, fill='x')
-
-button2 = Button(menu_frame, text='Gestão de Alunos', **button_styles, command=show_gestao_alunos)
-button2.pack(pady=10, padx=20, fill='x')
-
-button3 = Button(menu_frame, text='Gestão de Aulas e Horários', **button_styles, command=show_gestao_aulas_horarios)
-button3.pack(pady=10, padx=20, fill='x')
-
-button4 = Button(menu_frame, text='Gestão de Pagamentos', **button_styles, command=show_gestao_pagamentos)
-button4.pack(pady=10, padx=20, fill='x')
-
-button5 = Button(menu_frame, text='Performance de Alunos', **button_styles, command=show_performance_alunos)
-button5.pack(pady=10, padx=20, fill='x')
-
-root.mainloop()
